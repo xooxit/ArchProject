@@ -1,11 +1,3 @@
-//
-//  Project2_201611159_CLOCK.c
-//  Project2
-//
-//  Created by Siwoo Chung on 6/15/18.
-//  Copyright © 2018 Siwoo Chung. All rights reserved.
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
