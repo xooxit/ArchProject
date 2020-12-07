@@ -1,11 +1,3 @@
-//
-//  Project2_201611159_FIFO.c
-//  Project2
-//
-//  Created by Siwoo Chung on 6/14/18.
-//  Copyright © 2018 Siwoo Chung. All rights reserved.
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
