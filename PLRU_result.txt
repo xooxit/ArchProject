@@ -1,0 +1,4 @@
+cache hit:    67101286
+cache miss:        7578
+file read:           7578
+file write:         11434
