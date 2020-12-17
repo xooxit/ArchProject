@@ -1,12 +1,3 @@
-//
-//  Project2_201611159_LRU.c
-//  Project2
-//
-//  Created by Siwoo Chung on 6/15/18.
-//  Copyright © 2018 Siwoo Chung. All rights reserved.
-//
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,7 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-//#include <queue.h>
+#include <unordered_map>
 
 #define VAS 32 * 1024 * 1024 //virtual address space
 #define PAS 8 * 1024 * 1024 //physical address space
@@ -39,28 +30,22 @@ struct Node // Node for doubly linked list (DLL)
 struct Node* head = NULL; // DLL head
 struct Node* tail = NULL; // DLL tail
 
+std::unordered_map <int, Node *> LRU;
+
 void deleteNode(int vpn) { // Delete VPN node from DLL
-    if (head->next->data == vpn) { // A rarely used vpn is commonly deleted
-        struct Node* del = head->next;
-        head->next = del->next;
-        del->next->prev = head;
-        free(del);
-        return;
-    }
-    struct Node* del = (struct Node*) malloc(sizeof(struct Node));
-    del = head;
-    while (1) {
-        if (del == NULL)
-            return;
-        if (del->data == vpn)
-            break;
-        del = del->next;
-    }
 
-    del->prev->next = del->next;
-    del->next->prev = del->prev;
+    auto itr = LRU.find(vpn);
 
-    free(del);
+    if(itr != LRU.end())
+    {
+        struct Node* del = (struct Node*) malloc(sizeof(struct Node));
+
+        del = itr->second;
+        del->prev->next = del->next;
+        del->next->prev = del->prev;
+
+        LRU.erase(itr);
+    }
     return;
 }
 
@@ -78,16 +63,23 @@ void initDDL(struct Node **head_ref, struct Node **tail_ref) { // Initialize DLL
 }
 
 void push(int vpn) { // Push VPN to DLL
+
+    auto itr = LRU.find(vpn);
+
     if (tail->prev->data == vpn) // A most recently used vpn is commonly pushed
         return;
-    deleteNode(vpn);
+
+    if(!LRU.empty())
+        deleteNode(vpn);
+
     struct Node* new_node = (struct Node*) malloc(sizeof(struct Node));
     new_node->data = vpn;
     new_node->prev = tail->prev;
     new_node->prev->next = new_node;
-    
+
     new_node->next = tail;
     tail->prev = new_node;
+    LRU.insert(std::make_pair(vpn, new_node));
 }
 
 typedef struct {
@@ -107,10 +99,10 @@ int physicalFrame[2048];
 
 void init(int vm_size, int pm_size, int swap_size) {
     int res;
-    
+
     _g_pm_start = (char*)malloc(pm_size);
     _g_swap_fd = open("swap", O_RDWR | O_TRUNC | O_CREAT, 0644);
-    
+
     if (_g_swap_fd < 0) {
         perror("Error opening file");
         exit(0);
@@ -121,12 +113,12 @@ void init(int vm_size, int pm_size, int swap_size) {
         perror("Error calling lseek() to stretch the file");
         exit(0);
     }
-    
+
     _g_page_table = (pte*)malloc(NUM_PAGE * sizeof(pte));
     memset(_g_page_table, 0, NUM_PAGE * sizeof(pte));
-    
+
     _g_hits = _g_misses = _g_swap_R = _g_swap_W = 0;
-    
+
     return;
 }
 
@@ -162,7 +154,7 @@ int get_free_frame() {
         }
     }
     return -1;
-    
+
     /*비어있는 frame 번호 리턴*/
     /*없으면 -1*/
 }
@@ -197,7 +189,7 @@ void eviction(int vpn) {
         _g_page_table[vpn].present = 0;
         _g_page_table[vpn].dirty = 0;
     }
-    
+
     /*vpn을 physical 메모리에서 쫓아냄 ,dirty일시 file에 적어야됨*/
     /*pwrite*/
     /*write, lseek*/
@@ -221,7 +213,7 @@ void page_fault(int vpn) {
     _g_page_table[vpn].present = 1; // set page table
     _g_page_table[vpn].dirty = 0;
     _g_swap_R++; // Mark as swap reading occured
-    
+
     /*physical memory에 없는 vpn이 파라미터로 주어지고, 해당 vpn을 pnysical memory에 올리는 함수*/
     /*pread*/
     /*read,lseek*/
@@ -332,29 +324,29 @@ int main() {
     int *vsa;
     int size, idx;
     char value;
-    
+
     init(VAS, PAS, SWAP);
     scanf("%d",&MALLOC);
     scanf("%d",&FREE);
     scanf("%d",&OPERATION);
-    
+
     vsa = (int*)malloc(MALLOC * sizeof(int));
-    
+
     initDDL(&head, &tail);
-    
-    
+
+
     for (int i=0; i<MALLOC; i++) {
         size = (rand() % 32+1) * PAGE;
         vsa[i] = mymalloc(size);
     }
-    
+
     for (int i=0; i<FREE; i++) {
         idx = rand() % MALLOC;
         size = (rand() % 32+1) * PAGE;
         myfree(vsa[idx]);
         vsa[idx] = mymalloc(size);
     }
-    
+
     for(int i=0; i<OPERATION; i++){
         scanf(" %c ", &value);
         if (value == 'S') { // If input is starting with S
@@ -370,10 +362,10 @@ int main() {
         }
     }
     printf("%d %d %d %d\n", _g_hits, _g_misses, _g_swap_R, _g_swap_W);
-    
+
     //hit,miss file read, file write 순으로 출력
-    
-    
+
+
     free(vsa);
     return 0;
 }
